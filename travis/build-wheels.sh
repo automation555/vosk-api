@@ -1,23 +1,35 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e -x
 
-# Build libvosk
-cd /opt
-git clone https://github.com/alphacep/vosk-api
-cd vosk-api/src
-KALDI_ROOT=/opt/kaldi OPENFST_ROOT=/opt/kaldi/tools/openfst OPENBLAS_ROOT=/opt/kaldi/tools/OpenBLAS/install make -j $(nproc)
+export KALDI_ROOT=/opt/kaldi
 
-# Copy dlls to output folder
-mkdir -p /io/wheelhouse/vosk-linux-x86_64
-cp /opt/vosk-api/src/*.so /opt/vosk-api/src/vosk_api.h /io/wheelhouse/vosk-linux-x86_64
+# Compile wheels
+for pypath in /opt/python/cp3*; do
+    if [[ $pypath == *cp34* ]]; then
+        echo "Skipping building wheel for deprecated Python version ${pypath}"
+        continue
+    fi
+    export PYTHON_CFLAGS=$(${pypath}/bin/python3-config --cflags)
+    export TOP_SRCDIR=/io
+    mkdir -p /opt/wheelhouse
+    mkdir -p /io/wheelhouse
 
-# Build wheel and put to the output folder
-mkdir -p /opt/wheelhouse
-export VOSK_SOURCE=/opt/vosk-api
-/opt/python/cp37*/bin/pip -v wheel /opt/vosk-api/python --no-deps -w /opt/wheelhouse
+    # use _PYTHON_HOST_PLATFORM to tell distutils.util.get_platform() the actual platform
+    case $DEFAULT_DOCKCROSS_IMAGE in
+        *linux-armv6*)
+            export _PYTHON_HOST_PLATFORM=linux-armv6l
+    esac
 
-# Fix manylinux
-for whl in /opt/wheelhouse/*.whl; do
-    cp $whl /io/wheelhouse
-    auditwheel repair "$whl" --plat manylinux2010_x86_64 -w /io/wheelhouse
+    "${pypath}/bin/pip3" install --upgrade auditwheel
+    "${pypath}/bin/pip3" wheel /io/python -w /opt/wheelhouse -v
+
+    if [[ $DEFAULT_DOCKCROSS_IMAGE == *manylinux* ]]; then
+        # Bundle external shared libraries into the wheels
+        "${pypath}/bin/auditwheel" repair /opt/wheelhouse/*.whl -w /io/wheelhouse
+        rm /opt/wheelhouse/*.whl
+    else
+        # If not running on a manylinux-compatible image, we just have to hope for the best :)
+        "${pypath}/bin/auditwheel" show /opt/wheelhouse/*.whl
+        mv /opt/wheelhouse/*.whl /io/wheelhouse
+    fi
 done
