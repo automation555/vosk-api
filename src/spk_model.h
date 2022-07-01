@@ -18,11 +18,14 @@
 #include "base/kaldi-common.h"
 #include "online2/online-feature-pipeline.h"
 #include "nnet3/nnet-utils.h"
+#include "ivector/plda.h"
+#include "ivector/voice-activity-detection.h"
 #include <atomic>
 
 using namespace kaldi;
+typedef unordered_map<std::string, Vector<BaseFloat>*, StringHasher> HashType;
 
-class Recognizer;
+class KaldiRecognizer;
 
 class SpkModel {
 
@@ -32,14 +35,25 @@ public:
     void Unref();
 
 protected:
-    friend class Recognizer;
+    friend class KaldiRecognizer;
     ~SpkModel() {};
+
+    std::string plda_rxfilename;
+    std::string train_ivector_rspecifier;
+    std::string num_utts_rspecifier;
 
     kaldi::nnet3::Nnet speaker_nnet;
     kaldi::Vector<BaseFloat> mean;
     kaldi::Matrix<BaseFloat> transform;
 
+    HashType train_ivectors;
+    std::map<std::string, int32> num_utts;
+
     MfccOptions spkvector_mfcc_opts;
+    VadEnergyOptions vad_opts;
+    PldaConfig plda_config;
+
+    Plda plda;
 
     std::atomic<int> ref_cnt_;
 };
