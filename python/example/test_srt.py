@@ -11,8 +11,12 @@ import datetime
 
 SetLogLevel(-1)
 
+if not os.path.exists("model"):
+    print ("Please download the model from https://alphacephei.com/vosk/models and unpack as 'model' in the current folder.")
+    exit (1)
+
 sample_rate=16000
-model = Model(lang="en-us")
+model = Model("model")
 rec = KaldiRecognizer(model, sample_rate)
 rec.SetWords(True)
 
@@ -48,5 +52,6 @@ def transcribe():
                    end=datetime.timedelta(seconds=line[-1]['end']))
            subs.append(s)
     return subs
-
-print (srt.compose(transcribe()))
+subtitle = open('subtitle.srt', 'w', encoding="utf-8")
+print ((srt.compose(transcribe())), file = subtitle)
+subtitle.close()
