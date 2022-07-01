@@ -21,7 +21,7 @@
 #include "online2/onlinebin-util.h"
 #include "online2/online-timing.h"
 #include "online2/online-endpoint.h"
-#include "online2/online-nnet3-incremental-decoding.h"
+#include "online2/online-nnet3-decoding.h"
 #include "online2/online-feature-pipeline.h"
 #include "lat/lattice-functions.h"
 #include "lat/sausages.h"
@@ -30,13 +30,11 @@
 #include "util/parse-options.h"
 #include "nnet3/nnet-utils.h"
 #include "rnnlm/rnnlm-utils.h"
-#include "rnnlm/rnnlm-lattice-rescoring.h"
-#include <atomic>
 
 using namespace kaldi;
 using namespace std;
 
-class Recognizer;
+class KaldiRecognizer;
 
 class Model {
 
@@ -52,7 +50,7 @@ protected:
     void ConfigureV2();
     void ReadDataFiles();
 
-    friend class Recognizer;
+    friend class KaldiRecognizer;
 
     string model_path_str_;
     string nnet3_rxfilename_;
@@ -62,45 +60,37 @@ protected:
     string disambig_rxfilename_;
     string word_syms_rxfilename_;
     string winfo_rxfilename_;
+    string phone_syms_rxfilename_;
     string carpa_rxfilename_;
     string std_fst_rxfilename_;
     string final_ie_rxfilename_;
     string mfcc_conf_rxfilename_;
-    string fbank_conf_rxfilename_;
     string global_cmvn_stats_rxfilename_;
     string pitch_conf_rxfilename_;
 
-    string rnnlm_word_feats_rxfilename_;
-    string rnnlm_feat_embedding_rxfilename_;
-    string rnnlm_config_rxfilename_;
-    string rnnlm_lm_rxfilename_;
-
     kaldi::OnlineEndpointConfig endpoint_config_;
-    kaldi::LatticeIncrementalDecoderConfig nnet3_decoding_config_;
+    kaldi::LatticeFasterDecoderConfig nnet3_decoding_config_;
     kaldi::nnet3::NnetSimpleLoopedComputationOptions decodable_opts_;
     kaldi::OnlineNnet2FeaturePipelineInfo feature_info_;
 
-    kaldi::nnet3::DecodableNnetSimpleLoopedInfo *decodable_info_ = nullptr;
-    kaldi::TransitionModel *trans_model_ = nullptr;
-    kaldi::nnet3::AmNnetSimple *nnet_ = nullptr;
-    const fst::SymbolTable *word_syms_ = nullptr;
-    bool word_syms_loaded_ = false;
-    kaldi::WordBoundaryInfo *winfo_ = nullptr;
+    kaldi::nnet3::DecodableNnetSimpleLoopedInfo *decodable_info_;
+    kaldi::TransitionModel *trans_model_;
+    kaldi::nnet3::AmNnetSimple *nnet_;
+    const fst::SymbolTable *word_syms_;
+    bool word_syms_loaded_;
+    kaldi::WordBoundaryInfo *winfo_;
     vector<int32> disambig_;
+    const fst::SymbolTable *phone_syms_;
+    bool phone_syms_loaded_;
 
-    fst::Fst<fst::StdArc> *hclg_fst_ = nullptr;
-    fst::Fst<fst::StdArc> *hcl_fst_ = nullptr;
-    fst::Fst<fst::StdArc> *g_fst_ = nullptr;
+    fst::Fst<fst::StdArc> *hclg_fst_;
+    fst::Fst<fst::StdArc> *hcl_fst_;
+    fst::Fst<fst::StdArc> *g_fst_;
 
-    fst::VectorFst<fst::StdArc> *graph_lm_fst_ = nullptr;
+    fst::VectorFst<fst::StdArc> *std_lm_fst_;
     kaldi::ConstArpaLm const_arpa_;
 
-    kaldi::rnnlm::RnnlmComputeStateComputationOptions rnnlm_compute_opts;
-    CuMatrix<BaseFloat> word_embedding_mat;
-    kaldi::nnet3::Nnet rnnlm;
-    bool rnnlm_enabled_ = false;
-
-    std::atomic<int> ref_cnt_;
+    int ref_cnt_;
 };
 
 #endif /* VOSK_MODEL_H */
